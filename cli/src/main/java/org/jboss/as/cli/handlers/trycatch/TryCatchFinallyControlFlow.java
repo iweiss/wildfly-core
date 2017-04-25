@@ -57,6 +57,7 @@ class TryCatchFinallyControlFlow implements CommandLineRedirection {
     private int state;
 
     TryCatchFinallyControlFlow(CommandContext ctx) {
+        tryList = new ArrayList<>();
         ctx.set(Scope.CONTEXT, CTX_KEY, this);
     }
 
@@ -97,6 +98,9 @@ class TryCatchFinallyControlFlow implements CommandLineRedirection {
     }
 
     void moveToCatch() throws CommandLineException {
+        if(catchList == null) {
+            catchList = new ArrayList<>();
+        }
         switch(state) {
             case IN_TRY:
                 state = IN_CATCH;
@@ -111,6 +115,9 @@ class TryCatchFinallyControlFlow implements CommandLineRedirection {
     }
 
     void moveToFinally() throws CommandLineException {
+        if(finallyList == null) {
+            finallyList = new ArrayList<>();
+        }
         switch(state) {
             case IN_TRY:
                 state = IN_FINALLY;
@@ -128,21 +135,12 @@ class TryCatchFinallyControlFlow implements CommandLineRedirection {
     private void addLine(String line) {
         switch(state) {
             case IN_TRY:
-                if(tryList == null) {
-                    tryList = new ArrayList<String>();
-                }
                 tryList.add(line);
                 break;
             case IN_CATCH:
-                if(catchList == null) {
-                    catchList = new ArrayList<String>();
-                }
                 catchList.add(line);
                 break;
             case IN_FINALLY:
-                if(finallyList == null) {
-                    finallyList = new ArrayList<String>();
-                }
                 finallyList.add(line);
                 break;
             default:
