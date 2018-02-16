@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.jboss.as.controller.AbstractAddStepHandler;
 import org.jboss.as.controller.AbstractWriteAttributeHandler;
@@ -184,9 +183,13 @@ class PrincipalDecoderDefinitions {
                 final boolean convert = CONVERT.resolveModelAttribute(context, model).asBoolean();
 
                 final List<String> requiredOids = REQUIRED_OIDS.unwrap(context, model);
-                requiredOids.addAll(REQUIRED_ATTRIBUTES.unwrap(context, model).stream().map(name -> OidsUtil.attributeNameToOid(OidsUtil.Category.RDN, name)).collect(Collectors.toList()));
+                final List<String> list = new ArrayList<>(requiredOids);
+                for (String name : REQUIRED_ATTRIBUTES.unwrap(context, model)) {
+                    String s = OidsUtil.attributeNameToOid(OidsUtil.Category.RDN, name);
+                    list.add(s);
+                }
 
-                return () -> new X500AttributePrincipalDecoder(oid, joiner, startSegment, maximumSegments, reverse, convert, requiredOids.toArray(new String[requiredOids.size()]));
+                return () -> new X500AttributePrincipalDecoder(oid, joiner, startSegment, maximumSegments, reverse, convert, list.toArray(new String[list.size()]));
             }
 
         };
