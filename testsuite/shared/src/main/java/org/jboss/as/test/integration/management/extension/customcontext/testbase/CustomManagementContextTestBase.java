@@ -27,6 +27,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -141,6 +142,7 @@ public abstract class CustomManagementContextTestBase {
         final String staticUrl = urlBase + "static/hello.txt";
         final String staticUrlDirectory = urlBase + "static/";
         final String badStaticUrl = urlBase + "static/bad.txt";
+        final String errorUrl = urlBase + "error/index.html";
 
         // Sanity check
 
@@ -218,6 +220,18 @@ public abstract class CustomManagementContextTestBase {
             assertEquals(404, resp.getStatusLine().getStatusCode());
             resp = client.execute(new HttpGet(staticUrl));
             assertEquals(404, resp.getStatusLine().getStatusCode());
+
+            // Error Context
+            resp = client.execute(new HttpGet(errorUrl));
+            // X-Frame-Options: SAMEORIGIN
+            final Map<String, String> errorContextHeadersMap = new HashMap<>();
+            for (Header header : resp.getAllHeaders()) {
+                if (errorContextHeadersMap.put(header.getName(), header.getValue()) != null) {
+                    throw new IllegalStateException("Duplicate key");
+                }
+            }
+            Assert.assertTrue("'X-Frame-Options: SAMEORIGIN' error context header is expected as well",
+                              errorContextHeadersMap.getOrDefault("X-Frame-Options", "").contains("SAMEORIGIN"));
         }
     }
 
