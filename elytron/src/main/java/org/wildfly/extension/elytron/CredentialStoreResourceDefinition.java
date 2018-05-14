@@ -32,8 +32,11 @@ import static org.wildfly.extension.elytron._private.ElytronSubsystemMessages.RO
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -78,6 +81,7 @@ import org.wildfly.security.credential.PasswordCredential;
 import org.wildfly.security.credential.store.CredentialStore;
 import org.wildfly.security.credential.store.CredentialStoreException;
 import org.wildfly.security.credential.store.UnsupportedCredentialTypeException;
+import org.wildfly.security.credential.store.impl.KeyStoreCredentialStore;
 import org.wildfly.security.password.PasswordFactory;
 import org.wildfly.security.password.interfaces.ClearPassword;
 import org.wildfly.security.password.spec.ClearPasswordSpec;
@@ -88,6 +92,10 @@ import org.wildfly.security.password.spec.ClearPasswordSpec;
  * @author <a href="mailto:pskopek@redhat.com">Peter Skopek</a>
  */
 final class CredentialStoreResourceDefinition extends SimpleResourceDefinition {
+
+    // KeyStore backed credential store supported attributes
+    private static final String CS_KEY_STORE_TYPE_ATTRIBUTE = "keyStoreType";
+    private static final List<String> filebasedKeystoreTypes = Collections.unmodifiableList(Arrays.asList("JKS", "JCEKS", "PKCS12"));
 
     static final ServiceUtil<CredentialStore> CREDENTIAL_STORE_UTIL = ServiceUtil.newInstance(CREDENTIAL_STORE_RUNTIME_CAPABILITY, ElytronDescriptionConstants.CREDENTIAL_STORE, CredentialStore.class);
 
@@ -271,13 +279,10 @@ final class CredentialStoreResourceDefinition extends SimpleResourceDefinition {
             String location = asStringIfDefined(context, LOCATION, model);
             boolean modifiable =  MODIFIABLE.resolveModelAttribute(context, model).asBoolean();
             boolean create = CREATE.resolveModelAttribute(context, model).asBoolean();
-            final Map<String, String> implementationAttributes;
+            final Map<String, String> implementationAttributes = new HashMap<>();
             ModelNode implAttrModel = IMPLEMENTATION_PROPERTIES.resolveModelAttribute(context, model);
             if (implAttrModel.isDefined()) {
-                implementationAttributes = new HashMap<>();
                 implAttrModel.keys().forEach((String s) -> implementationAttributes.put(s, implAttrModel.require(s).asString()));
-            } else {
-                implementationAttributes = null;
             }
             String type = asStringIfDefined(context, TYPE, model);
             String providers = asStringIfDefined(context, PROVIDERS, model);
@@ -286,6 +291,15 @@ final class CredentialStoreResourceDefinition extends SimpleResourceDefinition {
             String name = credentialStoreName(operation);
             String relativeTo = asStringIfDefined(context, RELATIVE_TO, model);
             ServiceTarget serviceTarget = context.getServiceTarget();
+
+            if (type == null || type.equals(KeyStoreCredentialStore.KEY_STORE_CREDENTIAL_STORE)) {
+                implementationAttributes.putIfAbsent(CS_KEY_STORE_TYPE_ATTRIBUTE, "JCEKS");
+            }
+
+            String implAttrKeyStoreType = implementationAttributes.get(CS_KEY_STORE_TYPE_ATTRIBUTE);
+            if (location == null && implAttrKeyStoreType != null && filebasedKeystoreTypes.contains(implAttrKeyStoreType.toUpperCase(Locale.ENGLISH))) {
+                throw ROOT_LOGGER.filebasedKeystoreLocationMissing(implAttrKeyStoreType);
+            }
 
             // ----------- credential store service ----------------
             final CredentialStoreService csService;
