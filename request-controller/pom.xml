@@ -29,7 +29,7 @@
     <parent>
         <groupId>org.wildfly.core</groupId>
         <artifactId>wildfly-core-parent</artifactId>
-        <version>3.0.14.Final-redhat-SNAPSHOT</version>
+        <version>3.0.15.Final-redhat-SNAPSHO</version>
     </parent>
 
     <artifactId>wildfly-request-controller</artifactId>
