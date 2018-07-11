@@ -218,14 +218,15 @@ public class EnumValidator<E extends Enum<E>> extends ModelTypeValidator impleme
         ModelType type = value.getType();
         if (type == ModelType.STRING || type == ModelType.EXPRESSION) {
             String tuString = value.resolve().asString(); // Sorry, no support for resolving against vault!
-            E enumValue;
-            try {
-                enumValue = Enum.valueOf(enumType, tuString.toUpperCase(Locale.ENGLISH));
-            } catch (IllegalArgumentException e) {
-                // valueof failed - are we using the toString representation of the Enum type?
-                enumValue = toStringMap.get(tuString);
+            E enumValue = toStringMap.get(tuString);
+            if (enumValue == null) {
+                try {
+                    enumValue = Enum.valueOf(enumType, tuString.toUpperCase(Locale.ENGLISH));
+                } catch (IllegalArgumentException e) {
+                    throw ControllerLogger.ROOT_LOGGER.invalidEnumValue(tuString, parameterName, toStringMap.keySet());
+                }
             }
-            if (enumValue == null || !allowedValues.contains(enumValue)) {
+            if (!allowedValues.contains(enumValue)) {
                 throw ControllerLogger.ROOT_LOGGER.invalidEnumValue(tuString, parameterName, toStringMap.keySet());
             }
             // Hack to store the allowed value in the model, not the user input
