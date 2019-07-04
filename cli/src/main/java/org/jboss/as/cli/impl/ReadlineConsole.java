@@ -23,17 +23,14 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -165,7 +162,7 @@ public class ReadlineConsole {
                     return;
                 }
 
-                scan(line, index, line.getCurrentCharacterIndex());
+                markOpenPairs(line, index, line.getCurrentCharacterIndex());
                 lastIndex = colorize(line, index);
             } else if (startSeparators.contains(separator)) {
                 String l = line.getLineFromCursor();
@@ -175,75 +172,52 @@ public class ReadlineConsole {
                     return;
                 }
 
-                scan(line, line.getCurrentCharacterIndex(), index);
+                markOpenPairs(line, line.getCurrentCharacterIndex(), index);
                 lastIndex = colorize(line, index);
             } else {
                 lastIndex = -1;
             }
         }
 
-        void scan(Line line, int start, int end) {
-            List<AbstractMap.SimpleEntry<Character,Integer>> brackets = new ArrayList<>();
+        private void markOpenPairs(Line line, int start, int end) {
+            char[] chars = line.toString().toCharArray();
+            char[] returnPairs = findOpenPairs(chars, start, end);
 
-            // Collect the position of all brackets in the line
-            for (int i = start; i <= end; i++) {
-                char currentChar = line.getCharacterAtPosition(i);
-                if (endSeparators.contains(currentChar) || startSeparators.contains(currentChar)) {
-                    brackets.add(new AbstractMap.SimpleEntry<>(currentChar, i));
+            if (returnPairs.length == 0) return;
+
+            for (int i = start; i < end ; i++) {
+                if (startSeparators.contains(returnPairs[i]) || endSeparators.contains(returnPairs[i])) {
+                    colorizeOpenPair(line, i);
+                    openPositions.add(i);
                 }
             }
+        }
 
-            // If there's only one bracket in the line, mark it and return
-            if (brackets.size() == 1) {
-                AbstractMap.SimpleEntry<Character, Integer> solo = brackets.get(0);
-                if (endStartSeparators.containsKey(solo.getKey()) || startEndSeparators.containsKey(solo.getKey())) {
-                    colorizeOpenPair(line, solo.getValue());
-                    return;
+        private char[] findOpenPairs(char[] chars, int start, int end) {
+            for (int i = start; i < end; i++) {
+                char current = chars[i];
+                char closing = 0;
+
+                if (startSeparators.contains(current)) {
+                    closing = startEndSeparators.get(current);
+                } else if (endSeparators.contains(current)) {
+                    closing = endStartSeparators.get(current);
                 }
-            }
 
-            Set<AbstractMap.SimpleEntry<Character, Integer>> closedBrackets = new LinkedHashSet<>();
-            Set<AbstractMap.SimpleEntry<Character, Integer>> openBrackets = new LinkedHashSet<>();
+                if (closing != 0) {
+                    for (int j = i + 1; j <= end; j++) {
+                        char next = chars[j];
 
-
-            for (int i = 0; i < brackets.size(); i++) {
-                AbstractMap.SimpleEntry<Character, Integer> current = brackets.get(i);
-
-
-                // Go through all the brackets and figure out if they are close or open
-                for (int j = i + 1; j < brackets.size(); j++) {
-                    AbstractMap.SimpleEntry<Character, Integer> next = brackets.get(j);
-                    if (endStartSeparators.containsKey(current.getKey())) {
-                        if (next.getKey() != endStartSeparators.get(current.getKey())) {
-                            if (j == brackets.size() - 1) openBrackets.add(current);
-                            openBrackets.add(next);
-                        } else {
-                            closedBrackets.add(current);
-                            closedBrackets.add(next);
-                        }
-                    } else if (startEndSeparators.containsKey(current.getKey())) {
-                        if (next.getKey() != startEndSeparators.get(current.getKey())) {
-                            if (j == brackets.size() - 1) openBrackets.add(current);
-                            openBrackets.add(next);
-                        } else {
-                            closedBrackets.add(current);
-                            closedBrackets.add(next);
+                        if (next == closing && current != 0) {
+                            chars[i] = 0;
+                            chars[j] = 0;
+                            current = 0;
                         }
                     }
                 }
             }
 
-            // Remove brackets that are closed so we can clear them if needed
-            openBrackets.removeAll(closedBrackets);
-            for (AbstractMap.SimpleEntry<Character, Integer> closed : closedBrackets) {
-                clear(closed.getValue());
-            }
-
-            // Mark open brackets
-            for (AbstractMap.SimpleEntry<Character, Integer> open : openBrackets) {
-                colorizeOpenPair(line, open.getValue());
-                openPositions.add(open.getValue());
-            }
+            return chars;
         }
 
         private int findStart(String l, char start, char end) {
